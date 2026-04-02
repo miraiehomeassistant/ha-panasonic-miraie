@@ -1,0 +1,36 @@
+{
+  "config": {
+    "step": {
+      "pick_implementation": {
+        "title": "Pick Authentication Method",
+        "description": "Pick an authentication method to connect to your Panasonic MirAIe account."
+      },
+      "auth": {
+        "title": "Link Panasonic MirAIe Account",
+        "description": "Click the link below to log in to your Panasonic MirAIe account and authorize Home Assistant."
+      },
+      "oauth_discovery": {
+        "title": "Panasonic MirAIe Discovered",
+        "description": "A Panasonic MirAIe device has been discovered. Click Submit to continue setup."
+      }
+    },
+    "abort": {
+      "already_configured": "This Panasonic MirAIe account is already configured.",
+      "missing_configuration": "The Panasonic MirAIe integration is not configured. Please follow the documentation.",
+      "missing_credentials": "Application credentials are not configured.",
+      "oauth_implementation_unavailable": "OAuth2 implementation is unavailable. Please restart Home Assistant.",
+      "no_url_available": "No external URL available. Please configure an external URL in your Home Assistant settings. [More info]({docs_url})",
+      "authorize_url_timeout": "Timeout generating the authorization URL.",
+      "oauth_timeout": "Timeout while resolving the OAuth token.",
+      "oauth_failed": "Error while resolving the OAuth token.",
+      "oauth_unauthorized": "OAuth authorization was rejected.",
+      "oauth_error": "Invalid OAuth token received.",
+      "user_rejected_authorize": "Authorization rejected: {error}",
+      "already_in_progress": "Configuration flow is already in progress.",
+      "reauth_successful": "Re-authentication was successful."
+    },
+    "create_entry": {
+      "default": "Successfully connected to Panasonic MirAIe."
+    }
+  }
+}
