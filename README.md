@@ -114,4 +114,4 @@ This project is licensed under the Apache License 2.0 — see the [LICENSE](LICE
 
 ## Disclaimer
 
-This integration is not officially affiliated with or endorsed by Panasonic. Panasonic and MirAIe are trademarks of Panasonic Holdings Corporation.
+Developed by Panasonic India
