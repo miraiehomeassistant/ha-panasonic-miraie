@@ -6,6 +6,7 @@
   "dependencies": ["my"],
   "documentation": "https://github.com/miraiehomeassistant/ha-panasonic-miraie",
   "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/miraiehomeassistant/ha-panasonic-miraie/issues",
   "requirements": ["aiohttp>=3.8.0"],
   "version": "1.0.0"
 }
