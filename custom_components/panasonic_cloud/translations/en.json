@@ -12,6 +12,10 @@
       "oauth_discovery": {
         "title": "Panasonic MirAIe Discovered",
         "description": "A Panasonic MirAIe device has been discovered. Click Submit to continue setup."
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Panasonic MirAIe",
+        "description": "Your Panasonic MirAIe session has expired, or your account password has changed. Log in again to reconnect your devices. Your existing devices and automations will be preserved."
       }
     },
     "abort": {

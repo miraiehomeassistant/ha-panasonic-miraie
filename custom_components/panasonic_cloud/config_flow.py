@@ -4,11 +4,12 @@ from __future__ import annotations
 import base64
 import json
 import logging
+from collections.abc import Mapping
 from typing import Any, cast
 
 import aiohttp
 
-from homeassistant.config_entries import ConfigFlowResult
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigFlowResult
 from homeassistant.helpers import config_entry_oauth2_flow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -22,6 +23,12 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Panasonic's token endpoint reports expires_in=7776000 (90 days), but in
+# practice the access token only lives ~1 hour. We clamp it to 1 hour so
+# that Home Assistant's OAuth2Session.async_ensure_token_valid() refreshes
+# proactively instead of trusting the bogus 90-day window and getting 401s.
+TOKEN_EXPIRES_IN_OVERRIDE = 3600
 
 
 class PanasonicMirAIeOAuth2Implementation(
@@ -139,6 +146,21 @@ class PanasonicMirAIeOAuth2Implementation(
             if isinstance(result.get("scope"), dict):
                 result["scope"] = ""
 
+            # Clamp expires_in. Panasonic claims 90 days but tokens actually
+            # die in ~1 hour; without this, HA auto-refresh never fires.
+            original_expires = result.get("expires_in")
+            if (
+                original_expires is None
+                or not isinstance(original_expires, (int, float))
+                or original_expires > TOKEN_EXPIRES_IN_OVERRIDE
+            ):
+                result["expires_in"] = TOKEN_EXPIRES_IN_OVERRIDE
+                _LOGGER.debug(
+                    "Clamped expires_in from %s to %s",
+                    original_expires,
+                    TOKEN_EXPIRES_IN_OVERRIDE,
+                )
+
             _LOGGER.info(
                 "Token %s successful",
                 "refresh" if data.get("grant_type") == "refresh_token"
@@ -197,10 +219,54 @@ class PanasonicMirAIeOAuth2FlowHandler(
         )
         return await self.async_step_pick_implementation(user_input)
 
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> ConfigFlowResult:
+        """Handle reauth when Panasonic invalidates our tokens.
+
+        Triggered by ConfigEntryAuthFailed from setup or coordinator.
+        Commonly happens when the user changes their Panasonic password.
+        """
+        _LOGGER.info("Starting reauth flow for Panasonic MirAIe")
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Confirm reauth, then kick off the OAuth flow.
+
+        Shows a dialog explaining what happened. On confirm, runs the
+        standard OAuth login - user sees the same MirAIe login page as
+        initial setup. After success, async_oauth_create_entry updates
+        the existing entry instead of creating a new one.
+        """
+        if user_input is None:
+            return self.async_show_form(step_id="reauth_confirm")
+        return await self.async_step_user()
+
     async def async_oauth_create_entry(
         self, data: dict[str, Any]
     ) -> ConfigFlowResult:
-        """Create an entry for the flow."""
+        """Create or update the config entry after OAuth succeeds.
+
+        - Fresh setup: create a new entry.
+        - Reauth: update the existing entry with new tokens and reload it
+          (preserves devices, automations, unique_id).
+        """
+        # Reauth path: update existing entry rather than creating a duplicate
+        if self.source == SOURCE_REAUTH:
+            entry = self.hass.config_entries.async_get_entry(
+                self.context["entry_id"]
+            )
+            if entry is not None:
+                _LOGGER.info(
+                    "Reauth successful - updating existing config entry"
+                )
+                return self.async_update_reload_and_abort(
+                    entry, data={**entry.data, **data}
+                )
+
+        # Fresh setup path
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
         return self.async_create_entry(

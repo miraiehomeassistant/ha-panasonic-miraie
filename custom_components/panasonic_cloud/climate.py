@@ -87,6 +87,7 @@ class PanasonicClimate(CoordinatorEntity, ClimateEntity):
         super().__init__(coordinator)
         self._device_id = device.get("deviceId", "")
         self._device = device
+        self._base_topic = device.get("base_topic")
         self._attr_name = device.get("deviceName", "Panasonic AC")
         self._attr_unique_id = f"{DOMAIN}_{self._device_id}_climate"
 
@@ -111,7 +112,7 @@ class PanasonicClimate(CoordinatorEntity, ClimateEntity):
         status = self._status
         if not status:
             return False
-        return str(status.get("onlineStatus", "false")).lower() == "true"
+        return str(status.get("onlineStatus", "true")).lower() == "true"
 
     @property
     def hvac_mode(self) -> HVACMode:
@@ -173,13 +174,7 @@ class PanasonicClimate(CoordinatorEntity, ClimateEntity):
         await self._send({AC_POWER: "off"})
 
     async def _send(self, payload: dict[str, Any]) -> None:
-        """Send a control command and refresh state."""
-        success = await self.coordinator.api.async_set_device_state(
-            self._device_id, payload
+        """Send a control command via MQTT (preferred) or REST."""
+        await self.coordinator.async_send_control(
+            self._device_id, self._base_topic, payload
         )
-        if success:
-            self.coordinator.device_status.setdefault(
-                self._device_id, {}
-            ).update(payload)
-            self.async_write_ha_state()
-        await self.coordinator.async_request_refresh()

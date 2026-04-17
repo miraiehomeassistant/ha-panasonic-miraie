@@ -5,8 +5,8 @@
   "config_flow": true,
   "dependencies": ["my"],
   "documentation": "https://github.com/miraiehomeassistant/ha-panasonic-miraie",
-  "iot_class": "cloud_polling",
+  "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/miraiehomeassistant/ha-panasonic-miraie/issues",
-  "requirements": ["aiohttp>=3.8.0"],
-  "version": "1.0.0"
+  "requirements": ["aiohttp>=3.8.0", "paho-mqtt>=1.6.1"],
+  "version": "1.1.0"
 }

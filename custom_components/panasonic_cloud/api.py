@@ -34,6 +34,11 @@ class PanasonicMirAIeAPI:
         """Update the access token."""
         self._access_token = access_token
 
+    @property
+    def access_token(self) -> str:
+        """Return the current access token."""
+        return self._access_token
+
     def _headers(self) -> dict[str, str]:
         """Return request headers with current token."""
         return {
@@ -80,25 +85,41 @@ class PanasonicMirAIeAPI:
             _LOGGER.error("Error fetching homes: %s", err)
             raise
 
-    async def async_get_devices(self) -> dict[str, list[dict[str, Any]]]:
-        """Get all devices grouped by type.
+    async def async_get_home_id(self) -> str | None:
+        """Return the first home ID (used as MQTT username)."""
+        homes = await self.async_get_homes()
+        if not homes:
+            return None
+        return homes[0].get("homeId")
+
+    async def async_get_devices(self) -> dict[str, Any]:
+        """Get all devices grouped by type, plus home_id and topics.
 
         API structure: home -> spaces[] -> devices[]
-        Each device has: deviceId, deviceName, category, modelId, topic
+        Each device has: deviceId, deviceName, category, modelId, topic (list)
+
+        Returns a dict with keys:
+            "ac", "fan", "switch": lists of device dicts
+            "home_id": the first home's ID (for MQTT auth)
+            "topics": list of unique MQTT base topics across all devices
         """
         homes = await self.async_get_homes()
 
         ac_devices: list[dict[str, Any]] = []
         fan_devices: list[dict[str, Any]] = []
         switch_devices: list[dict[str, Any]] = []
+        home_id: str | None = None
+        all_topics: set[str] = set()
 
         for home in homes:
-            home_id = home.get("homeId", "unknown")
+            if home_id is None:
+                home_id = home.get("homeId")
+            hid = home.get("homeId", "unknown")
             home_name = home.get("homeName", "Unknown Home")
             spaces = home.get("spaces", [])
 
             _LOGGER.debug(
-                "Home '%s' (%s) has %d spaces", home_name, home_id, len(spaces)
+                "Home '%s' (%s) has %d spaces", home_name, hid, len(spaces)
             )
 
             for space in spaces:
@@ -113,11 +134,24 @@ class PanasonicMirAIeAPI:
                     if not device_id:
                         continue
 
+                    # Device topic field is a LIST (discovered during MQTT work)
+                    topic_field = device.get("topic")
+                    if isinstance(topic_field, list) and topic_field:
+                        base_topic = topic_field[0]
+                    elif isinstance(topic_field, str) and topic_field:
+                        base_topic = topic_field
+                    else:
+                        base_topic = None
+
                     # Enrich device data with home/space context
-                    device["homeId"] = home_id
+                    device["homeId"] = hid
                     device["homeName"] = home_name
                     device["spaceName"] = space_name
                     device["name"] = device_name
+                    device["base_topic"] = base_topic
+
+                    if base_topic:
+                        all_topics.add(base_topic)
 
                     if category in AC_CATEGORIES:
                         ac_devices.append(device)
@@ -131,13 +165,19 @@ class PanasonicMirAIeAPI:
                         )
 
         _LOGGER.info(
-            "Discovered: %d AC, %d Fan, %d Switch",
-            len(ac_devices), len(fan_devices), len(switch_devices),
+            "Discovered: %d AC, %d Fan, %d Switch, %d unique MQTT topics",
+            len(ac_devices), len(fan_devices), len(switch_devices), len(all_topics),
         )
-        return {"ac": ac_devices, "fan": fan_devices, "switch": switch_devices}
+        return {
+            "ac": ac_devices,
+            "fan": fan_devices,
+            "switch": switch_devices,
+            "home_id": home_id,
+            "topics": sorted(all_topics),
+        }
 
     async def async_get_device_status(self, device_id: str) -> dict[str, Any]:
-        """Get the current status of a device."""
+        """Get the current status of a device (REST fallback)."""
         url = STATUS_URL(device_id)
         try:
             async with self._session.get(url, headers=self._headers()) as resp:
@@ -165,7 +205,7 @@ class PanasonicMirAIeAPI:
     async def async_set_device_state(
         self, device_id: str, payload: dict[str, Any]
     ) -> bool:
-        """Set device state via the control API.
+        """Set device state via the REST control API.
 
         Wraps payload in the required format:
         {

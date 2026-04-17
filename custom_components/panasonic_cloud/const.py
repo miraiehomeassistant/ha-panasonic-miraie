@@ -13,7 +13,7 @@ CLIENT_SECRET = "secret.a25aee2b-f44e-4812-b17c-c3a2c12a1325"
 OAUTH_SCOPE = "ITFF_AUTH"
 OAUTH_REDIRECT_URI = "https://my.home-assistant.io/redirect/oauth"
 
-# API
+# REST API
 API_BASE = "https://app.miraie.in/simplifi/v1"
 HOMES_URL = f"{API_BASE}/homeManagement/homes"
 CONTROL_URL_BASE = f"{API_BASE}/deviceManagement/control"
@@ -34,13 +34,24 @@ def CONTROL_URL(device_id: str) -> str:
     return CONTROL_URL_BASE
 
 
+# MQTT Broker (confirmed working - v1.1.0)
+MQTT_BROKER = "mqtt.miraie.in"
+MQTT_PORT = 8883
+# Lower keepalive prevents Panasonic broker idle disconnects (rc=7).
+# 30s pings comfortably under most cloud broker idle windows.
+MQTT_KEEPALIVE = 30
+MQTT_RECONNECT_MIN_DELAY = 1
+MQTT_RECONNECT_MAX_DELAY = 120
+
 # Device categories (from actual production API responses)
 AC_CATEGORIES = ["AC", "ODMIRB-AC"]
 FAN_CATEGORIES = ["FANCONTROLLER"]
 SWITCH_CATEGORIES = ["SWITCHES", "ROMASWITCHES", "PLUG"]
 
-# Polling interval
-SCAN_INTERVAL_SECONDS = 300  # 5 minutes
+# REST polling interval (fallback when MQTT is down)
+# v1.0.0 used 300s (5 min); v1.1.0 uses 900s (15 min) because MQTT
+# provides real-time updates - REST is just a safety net.
+SCAN_INTERVAL_SECONDS = 900
 
 # AC field mappings
 AC_POWER = "acdc"          # "on" / "off"
