@@ -54,7 +54,7 @@ SWITCH_CATEGORIES = ["SWITCHES", "ROMASWITCHES", "PLUG"]
 SCAN_INTERVAL_SECONDS = 900
 
 # AC field mappings
-AC_POWER = "acdc"          # "on" / "off"
+AC_POWER = "ps"          # "on" / "off"
 AC_MODE = "acmd"           # "cool" / "heat" / "auto" / "dry" / "fan"
 AC_TARGET_TEMP = "actmp"   # e.g. "20.0"
 AC_CURRENT_TEMP = "rmtmp"  # e.g. "22.0"
